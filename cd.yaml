@@ -1,1 +1,51 @@
 
+name: Terraform Deployment Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.0.0
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Checkov Scan
+        run: checkov -d . --skip-check CKV_AWS_31,CKV_AWS_18_002
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Approval Step
+        if: github.event_name == 'push'
+        uses: unsplash/approvals-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          reviewers: username1, username2 # Add GitHub usernames who need to approve
+          approval-count: 2 # Adjust the required number of approvals as needed
+          request-message: "Terraform plan approval required before applying changes."
+
+      - name: Terraform Apply
+        if: github.event_name == 'push' && steps.terraform.outputs.approval == 'approved'
+        run: terraform apply -auto-approve tfplan
