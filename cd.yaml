@@ -1,4 +1,3 @@
-
 name: Terraform Deployment Workflow
 
 on:
@@ -10,9 +9,37 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
 
+    env:
+      AWS_REGION: <YOUR_AWS_REGION>
+      AWS_ACCOUNT_ID: <YOUR_AWS_ACCOUNT_ID>
+      AWS_ROLE_ARN: <YOUR_AWS_ROLE_ARN>
+      AWS_ROLE_SESSION_NAME: GitHubActionsSession
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
+      - name: Configure AWS CLI
+        run: aws configure set region ${AWS_REGION}
+
+      - name: Assume AWS OIDC Role
+        run: |
+          aws sts assume-role-with-web-identity \
+            --role-arn ${{ env.AWS_ROLE_ARN }} \
+            --role-session-name ${{ env.AWS_ROLE_SESSION_NAME }} \
+            --web-identity-token ${{ secrets.AWS_OIDC_TOKEN }} \
+            --duration-seconds 900 # adjust the duration as per your requirement
+
+      - name: Set AWS Credentials
+        run: |
+          export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+          export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+          export AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v1
@@ -42,10 +69,4 @@ jobs:
         uses: unsplash/approvals-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          reviewers: username1, username2 # Add GitHub usernames who need to approve
-          approval-count: 2 # Adjust the required number of approvals as needed
-          request-message: "Terraform plan approval required before applying changes."
-
-      - name: Terraform Apply
-        if: github.event_name == 'push' && steps.terraform.outputs.approval == 'approved'
-        run: terraform apply -auto-approve tfplan
+         
