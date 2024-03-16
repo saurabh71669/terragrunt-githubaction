@@ -16,8 +16,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: <YOUR_AWS_REGION>
-      AWS_ROLE_ARN: <YOUR_AWS_ROLE_ARN>
+      AWS_REGION: "eu-west-1"
+      AWS_ROLE_ARN: arn:aws:iam::533390316394:role/github-oidc-role
       AWS_SESSION_NAME: GitHubActionsSession
 
     steps:
