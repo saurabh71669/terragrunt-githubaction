@@ -1,4 +1,4 @@
-name: Terraform Deployment Workflow
+name: Terraform Deployment Workflo
 
 on:
   push:
