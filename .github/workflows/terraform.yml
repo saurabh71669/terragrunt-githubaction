@@ -1,0 +1,69 @@
+name: Terraform Deployment Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: <YOUR_AWS_REGION>
+      AWS_ROLE_ARN: <YOUR_AWS_ROLE_ARN>
+      AWS_SESSION_NAME: GitHubActionsSession
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install AWS CLI v2
+        uses: aws-actions/setup-aws-cli@v2
+
+      - name: Configure AWS CLI v2
+        run: aws configure set region ${{ env.AWS_REGION }}
+
+      - name: Assume AWS OIDC Role
+        run: |
+          aws sts assume-role-with-web-identity \
+            --role-arn ${{ env.AWS_ROLE_ARN }} \
+            --role-session-name ${{ env.AWS_SESSION_NAME }} \
+            --web-identity-token ${{ secrets.AWS_OIDC_TOKEN }} \
+            --duration-seconds 900 # adjust the duration as per your requirement
+
+      - name: Set AWS Credentials
+        run: |
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set aws_session_token $AWS_SESSION_TOKEN
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.0.0
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Approval Step
+        if: github.event_name == 'push'
+        uses: unsplash/approvals-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          reviewers: username1, username2 # Add GitHub usernames who need to approve
+          approval-count: 2 # Adjust the required number of approvals as needed
+          request-message: "Terraform plan approval required before applying changes."
+
+      - name: Terraform Apply
+        if: github.event_name == 'push' && steps.terraform.outputs.approval == 'approved'
+        run: terraform apply -auto-approve tfplan
