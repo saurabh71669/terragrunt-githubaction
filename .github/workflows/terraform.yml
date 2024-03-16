@@ -1,4 +1,4 @@
-name: Terraform Deployment Workflo
+name: Terraform Deployment Workflow
 
 on:
   push:
@@ -10,8 +10,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: env.AWS_REGION
-      AWS_ROLE_ARN: env.AWS_ROLE_ARN
+      AWS_REGION: <YOUR_AWS_REGION>
+      AWS_ROLE_ARN: <YOUR_AWS_ROLE_ARN>
       AWS_SESSION_NAME: GitHubActionsSession
 
     steps:
@@ -23,12 +23,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y awscli
 
+      - name: Fetch AWS OIDC Token
+        id: oidc
+        run: echo "::set-output name=token::$(cat path/to/your/aws/oidc/token)"
+
       - name: Assume AWS OIDC Role
         run: |
           aws sts assume-role-with-web-identity \
             --role-arn ${{ env.AWS_ROLE_ARN }} \
             --role-session-name ${{ env.AWS_SESSION_NAME }} \
-            --web-identity-token ${{ secrets.AWS_OIDC_TOKEN }} \
+            --web-identity-token $(cat path/to/your/aws/oidc/token) \
             --duration-seconds 900 # adjust the duration as per your requirement
 
       - name: Set AWS Credentials
